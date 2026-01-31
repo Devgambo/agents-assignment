@@ -105,7 +105,6 @@ class ManualTurnHandler:
         transcript = ev.transcript
         classification = classify_transcript(transcript)
         
-        # Only process final transcripts for turn control
         if not ev.is_final:
             logger.debug(f"Interim: '{transcript}' | Class: {classification}")
             return
@@ -116,18 +115,15 @@ class ManualTurnHandler:
             f"Agent speaking: {self._agent_is_speaking}"
         )
         
-        # FILLER: Completely ignore - agent continues uninterrupted
         if classification == 'filler':
             logger.info(f"IGNORING filler '{transcript}' - agent continues speaking")
             return
         
-        # COMMAND: Always interrupt immediately
         if classification == 'command':
             logger.info(f"COMMAND '{transcript}' - interrupting agent immediately")
             self._commit_turn()
             return
         
-        # SPEECH: This is real user input, commit the turn
         logger.info(f"Real speech '{transcript}' - committing user turn")
         self._commit_turn()
     
