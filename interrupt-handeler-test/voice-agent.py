@@ -63,8 +63,6 @@ server.setup_fnc = prewarm
 
 
 # MANUAL TURN DETECTION HANDLER
-# Uses turn_detection="manual" so VAD NEVER pauses the agent.
-# We manually call commit_user_turn() only for non-filler speech.
 class ManualTurnHandler:
     """
     Handles context-aware interruption with ZERO pause for filler words.
@@ -97,10 +95,13 @@ class ManualTurnHandler:
         """
         Process transcripts and decide whether to trigger a turn.
         
-        MANUAL TURN DETECTION LOGIC:
-        - Filler words: IGNORE completely (agent keeps speaking)
-        - Command words: ALWAYS interrupt (commit turn immediately)
-        - Regular speech: Interrupt if agent is speaking, else just accumulate
+        STATE-AWARE LOGIC:
+        - When agent is SPEAKING:
+            - Filler words: IGNORE (agent keeps speaking)
+            - Command words: INTERRUPT immediately
+            - Regular speech: INTERRUPT
+        - When agent is LISTENING:
+            - ALL input (including fillers): Commit turn to get a response
         """
         transcript = ev.transcript
         classification = classify_transcript(transcript)
@@ -115,17 +116,23 @@ class ManualTurnHandler:
             f"Agent speaking: {self._agent_is_speaking}"
         )
         
-        if classification == 'filler':
-            logger.info(f"IGNORING filler '{transcript}' - agent continues speaking")
-            return
-        
-        if classification == 'command':
-            logger.info(f"COMMAND '{transcript}' - interrupting agent immediately")
+        # STATE-AWARE: Only ignore fillers when agent is SPEAKING
+        if self._agent_is_speaking:
+            if classification == 'filler':
+                logger.info(f"IGNORING filler '{transcript}' - agent is speaking")
+                return
+            
+            if classification == 'command':
+                logger.info(f"COMMAND '{transcript}' - interrupting agent")
+                self._commit_turn()
+                return
+            
+            logger.info(f"Real speech '{transcript}' - interrupting agent")
             self._commit_turn()
-            return
-        
-        logger.info(f"Real speech '{transcript}' - committing user turn")
-        self._commit_turn()
+        else:
+            # Agent is LISTENING - respond to everything including fillers
+            logger.info(f"Agent listening - committing '{transcript}'")
+            self._commit_turn()
     
     def _commit_turn(self):
         """Commit the user turn, which will interrupt agent and trigger response."""
@@ -151,6 +158,7 @@ async def my_agent(ctx: JobContext):
         ),
         vad=ctx.proc.userdata["vad"],
         preemptive_generation=True,
+
         turn_detection="manual",
         resume_false_interruption=False,
         min_interruption_words=0,

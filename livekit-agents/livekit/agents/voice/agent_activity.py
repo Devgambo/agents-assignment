@@ -1313,17 +1313,27 @@ class AgentActivity(RecognitionHooks):
         
         opt = self._session.options
         
-        # FILLER WORD HANDLING: When using manual turn detection + filler filtering,
-        # automatically commit turns for non-filler speech
+        # STATE-AWARE FILLER WORD HANDLING:
+        # When using manual turn detection + filler filtering,
+        # only ignore fillers when agent is SPEAKING
         if self._turn_detection == "manual" and opt.ignore_filler_interruptions:
             transcript = ev.alternatives[0].text
             classification = _classify_transcript(
                 transcript, opt.filler_words, opt.command_words
             )
-            if classification != 'filler':
-                # Non-filler speech: commit the turn to trigger agent response
+            
+            agent_is_speaking = (self._session.agent_state == "speaking")
+            
+            if agent_is_speaking:
+                # Agent is SPEAKING - ignore fillers, respond to commands/speech
+                if classification == 'filler':
+                    # Filler: do nothing, agent continues speaking
+                    return
+                # Command or speech: commit turn to interrupt
                 self._session.commit_user_turn()
-            # Filler speech: do nothing, agent continues speaking
+            else:
+                # Agent is LISTENING - respond to everything including fillers
+                self._session.commit_user_turn()
             return
         
         # agent speech might not be interrupted if VAD failed and a final transcript is received
