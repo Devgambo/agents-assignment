@@ -138,7 +138,7 @@ DEFAULT_TTS_TEXT_TRANSFORMS: list[TextTransforms] = ["filter_markdown", "filter_
 DEFAULT_FILLER_WORDS: set[str] = {
     "yeah", "ok", "okay", "hmm", "hmmm", "hmmmm", "uh-huh", "right", "aha", "ahaa",
     "mm", "mmm", "mhm", "mhmm", "mhmmm", "uh", "uhh", "uhm", "um", "umm",
-    "yep", "yes", "sure", "got it", "i see", "aah", "aaha", "aah-ha"
+    "yep", "yes", "sure", "aah", "aaha", "aah-ha"
 }
 DEFAULT_COMMAND_WORDS: set[str] = {"wait", "stop", "no", "hold", "pause"}
 
